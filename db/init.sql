@@ -17,3 +17,25 @@ CREATE TABLE IF NOT EXISTS tickets (
     status VARCHAR(20) NOT NULL DEFAULT 'open',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS agent_runs (
+    id SERIAL PRIMARY KEY,
+    task TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'running',
+    final_answer TEXT,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    completed_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS tool_calls (
+    id SERIAL PRIMARY KEY,
+    agent_run_id INTEGER NOT NULL REFERENCES agent_runs(id) ON DELETE CASCADE,
+    iteration INTEGER NOT NULL,
+    tool_name VARCHAR(100) NOT NULL,
+    arguments JSONB NOT NULL,
+    success BOOLEAN NOT NULL,
+    result JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tool_calls_agent_run_id ON tool_calls(agent_run_id);
