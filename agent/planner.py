@@ -7,15 +7,22 @@ from agent.config import settings
 
 MODEL = "llama-3.3-70b-versatile"
 MAX_ITERATIONS = 8
+MAX_CONSECUTIVE_FAILURES = 3
 
 SYSTEM_PROMPT = (
     "You are an autonomous agent with access to tools for querying a "
     "database of health checks, creating support tickets, and looking up "
     "current weather. Break the user's task into steps. Call one or more "
     "tools as needed, then give a final, plain-language answer once the "
-    "task is complete. If a tool result contains an 'error' field, that "
-    "means the tool call did not succeed - explain the problem or try a "
-    "different approach rather than pretending it worked."
+    "task is complete.\n\n"
+    'Every tool result includes "success": true or false. If "success" is '
+    'false, the call did not work - read its "error" message and change '
+    "your approach before trying again: fix the input, try a different "
+    "tool, or try different arguments. Do not call the exact same tool "
+    "with the exact same arguments again after a failure - it will fail "
+    "the same way every time. If you cannot complete the task after a "
+    "reasonable alternative also fails, say so clearly instead of "
+    "pretending it worked."
 )
 
 
@@ -35,6 +42,19 @@ def _extract_tool_output(result) -> object:
     return {"content": "\n".join(text_parts)}
 
 
+def _is_failure(result, tool_output: object) -> bool:
+    """A call can fail two different ways: the MCP protocol layer marks it
+    isError (unknown tool, arguments that fail schema validation, an
+    uncaught exception inside the tool - verified in this version that none
+    of these raise a Python exception at the client, they all come back as
+    a normal CallToolResult with isError=True), or the tool ran fine but
+    reported its own business-logic failure (our ToolError shape from v2,
+    e.g. "city not found"). Both mean this result is not usable data."""
+    if result.isError:
+        return True
+    return isinstance(tool_output, dict) and "error" in tool_output
+
+
 async def run_task(task: str) -> str:
     """Runs the agent loop for a single task and returns the final answer.
     Prints each step so you can watch the agent's decisions as they happen -
@@ -49,6 +69,9 @@ async def run_task(task: str) -> str:
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": task},
         ]
+
+        consecutive_failures = 0
+        last_error_message = None
 
         for iteration in range(1, MAX_ITERATIONS + 1):
             response = groq_client.chat.completions.create(
@@ -75,14 +98,48 @@ async def run_task(task: str) -> str:
                 print(f"[agent] iteration {iteration}: calling {tool_name}({tool_args})")
                 result = await session.call_tool(tool_name, tool_args)
                 tool_output = _extract_tool_output(result)
-                print(f"[agent] iteration {iteration}: result = {tool_output}")
+                failed = _is_failure(result, tool_output)
+
+                if failed:
+                    consecutive_failures += 1
+                    last_error_message = (
+                        tool_output.get("error")
+                        if isinstance(tool_output, dict)
+                        else str(tool_output)
+                    )
+                    print(
+                        f"[agent] iteration {iteration}: FAILED "
+                        f"(consecutive failures: {consecutive_failures}) -> {last_error_message}"
+                    )
+                else:
+                    consecutive_failures = 0
+                    print(f"[agent] iteration {iteration}: result = {tool_output}")
+
+                # Explicit "success" field, not just an "error" key's
+                # presence-or-absence - a consistent, unambiguous signal the
+                # model doesn't have to infer.
+                envelope = (
+                    {"success": False, "error": last_error_message}
+                    if failed
+                    else {"success": True, "data": tool_output}
+                )
 
                 messages.append(
                     {
                         "role": "tool",
                         "tool_call_id": tool_call.id,
-                        "content": json.dumps(tool_output),
+                        "content": json.dumps(envelope),
                     }
+                )
+
+            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                print(
+                    f"[agent] stopping: {consecutive_failures} consecutive tool "
+                    "failures - giving up rather than retrying indefinitely"
+                )
+                return (
+                    "I was unable to complete this task: tool calls failed "
+                    f"{consecutive_failures} times in a row. Last error: {last_error_message}"
                 )
 
         return f"Stopped after {MAX_ITERATIONS} iterations without a final answer."
