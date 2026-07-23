@@ -1,10 +1,12 @@
 from mcp_server.instance import mcp
 
-# Imported for its side effect: decorating query_health_checks with
-# @mcp.tool() registers it on the shared `mcp` instance above. We don't call
-# anything from this module directly, which is why linters flag the import
-# as "unused" - it isn't unused, it's how registration happens.
+# Imported for their side effects: each decorates a function with
+# @mcp.tool(), registering it on the shared `mcp` instance above. We don't
+# call anything from these modules directly, which is why linters flag the
+# imports as "unused" - they aren't, this is how registration happens.
 from mcp_server.tools import db_query  # noqa: F401
+from mcp_server.tools import external_api  # noqa: F401
+from mcp_server.tools import ticket_create  # noqa: F401
 
 if __name__ == "__main__":
     # stdio transport: read/write MCP protocol messages over stdin/stdout.

@@ -41,6 +41,23 @@ async def main() -> None:
             print("isError:", result.isError)
             print("structuredContent:", result.structuredContent)
 
+            print("\nCalling create_ticket(...)...")
+            result = await session.call_tool(
+                "create_ticket",
+                {
+                    "title": "Login page returns 500",
+                    "description": "Users report a server error on /login since this morning.",
+                    "priority": "high",
+                },
+            )
+            print("isError:", result.isError)
+            print("structuredContent:", result.structuredContent)
+
+            print("\nCalling get_current_weather(city='Austin')...")
+            result = await session.call_tool("get_current_weather", {"city": "Austin"})
+            print("isError:", result.isError)
+            print("structuredContent:", result.structuredContent)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
