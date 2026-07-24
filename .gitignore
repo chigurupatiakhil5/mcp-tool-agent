@@ -9,3 +9,6 @@ venv/
 .DS_Store
 .idea/
 .vscode/
+
+# Personal reference only - not for the public repo
+INTERVIEW_PREP.md
