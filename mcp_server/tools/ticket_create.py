@@ -1,4 +1,4 @@
-from typing import Literal, Union
+from typing import Literal
 
 from typing_extensions import TypedDict
 
@@ -21,7 +21,7 @@ def create_ticket(
     title: str,
     description: str,
     priority: Literal["low", "medium", "high", "urgent"] = "medium",
-) -> Union[TicketResult, ToolError]:
+) -> TicketResult | ToolError:
     """Create a support ticket.
 
     Args:

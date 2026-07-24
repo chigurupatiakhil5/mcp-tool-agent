@@ -35,10 +35,9 @@ async def mcp_session():
     real overhead, and a task's tool calls have no reason to each pay it.
     The subprocess is terminated automatically when the `async with` block
     around this exits."""
-    async with stdio_client(SERVER_PARAMS) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            yield session
+    async with stdio_client(SERVER_PARAMS) as (read, write), ClientSession(read, write) as session:
+        await session.initialize()
+        yield session
 
 
 def mcp_tool_to_groq_tool(tool: Tool) -> dict:

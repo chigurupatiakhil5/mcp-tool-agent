@@ -1,5 +1,3 @@
-from typing import Optional, Union
-
 import httpx
 from typing_extensions import TypedDict
 
@@ -9,8 +7,8 @@ from mcp_server.types import ToolError
 
 class WeatherResult(TypedDict):
     city: str
-    region: Optional[str]
-    country: Optional[str]
+    region: str | None
+    country: str | None
     temperature_c: float
     windspeed_kmh: float
     conditions: str
@@ -50,7 +48,7 @@ WEATHER_CODES = {
 
 
 @mcp.tool()
-async def get_current_weather(city: str) -> Union[WeatherResult, ToolError]:
+async def get_current_weather(city: str) -> WeatherResult | ToolError:
     """Look up the current weather for a city.
 
     Calls Open-Meteo, a free weather API with no API key required. This is

@@ -21,7 +21,7 @@ def health():
 
 
 @app.get("/health/db")
-def health_db(db: Session = Depends(get_db)):
+def health_db(db: Session = Depends(get_db)):  # noqa: B008 - correct FastAPI DI pattern, not a real bug
     """Readiness check - proves the app can actually read and write
     Postgres, not just hold an open connection. Each call inserts a new row
     and returns the running total, so calling this endpoint twice in a row

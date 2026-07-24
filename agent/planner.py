@@ -61,7 +61,7 @@ def _is_failure(result, tool_output: object) -> bool:
 def _start_run_log(db, task: str):
     """Best-effort: create the agent_runs row for this task. Returns the
     AgentRun, or None if logging itself failed - the agent still proceeds
-    with the actual task either way (see module docstring below on why
+    with the actual task either way (see run_task's docstring below on why
     logging must never be allowed to crash the task it's logging)."""
     try:
         run = AgentRun(task=task, status="running")
@@ -69,7 +69,7 @@ def _start_run_log(db, task: str):
         db.commit()
         db.refresh(run)
         return run
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - intentionally broad, see run_task's docstring
         print(f"[agent] WARNING: failed to log run start: {exc}")
         db.rollback()
         return None
@@ -90,7 +90,7 @@ def _log_tool_call(db, run, iteration: int, tool_name: str, arguments: dict, suc
             )
         )
         db.commit()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - intentionally broad, see run_task's docstring
         print(f"[agent] WARNING: failed to log tool call: {exc}")
         db.rollback()
 
@@ -103,7 +103,7 @@ def _finish_run_log(db, run, status: str, final_answer: str) -> None:
         run.final_answer = final_answer
         run.completed_at = datetime.now(timezone.utc)
         db.commit()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - intentionally broad, see run_task's docstring
         print(f"[agent] WARNING: failed to log run completion: {exc}")
         db.rollback()
 
