@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # A real Postgres, provisioned fresh for this run - not a mock. Same
+    # image as db/init.sql targets locally (postgres:16-alpine).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mcp_agent
+          POSTGRES_PASSWORD: change_me
+          POSTGRES_DB: mcp_agent_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mcp_agent -d mcp_agent_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      POSTGRES_USER: mcp_agent
+      POSTGRES_PASSWORD: change_me
+      POSTGRES_DB: mcp_agent_db
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # db/init.sql only auto-runs on Postgres's own first boot with an
+      # empty data directory (see v0) - that mechanism doesn't apply to a
+      # GitHub Actions service container, so we apply the schema ourselves,
+      # the same way scripts/apply_schema.py does locally (v6).
+      - name: Apply database schema
+        run: python -m scripts.apply_schema
+
+      - name: Run tests
+        run: pytest -v
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Catches Dockerfile/docker-compose.yml regressions on every push,
+      # independent of the test job above - this doesn't run the app, it
+      # only confirms both service images still build.
+      - name: Build Docker images
+        run: docker compose build

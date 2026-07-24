@@ -32,5 +32,28 @@ services:
       db:
         condition: service_healthy
 
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # profiles excludes this service from a plain `docker compose up` -
+    # restart: "no" alone does NOT do that, it only controls whether Docker
+    # restarts the container after it exits, not whether `up` starts it in
+    # the first place (verified the hard way: it silently ran during `up`
+    # before this was added). Run the agent on demand instead:
+    #   docker compose run --rm agent
+    #   docker compose run --rm agent python -m scripts.run_agent_task "..."
+    profiles:
+      - agent
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["python", "-m", "scripts.run_agent_task"]
+
 volumes:
   pgdata:

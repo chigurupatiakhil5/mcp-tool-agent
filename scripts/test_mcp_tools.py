@@ -10,19 +10,13 @@ prove a tool actually works end-to-end without opening Claude Desktop.
 
 import asyncio
 import json
-import sys
 
-from mcp import ClientSession, StdioServerParameters
+from mcp import ClientSession
 from mcp.client.stdio import stdio_client
 
-# sys.executable, not the bare string "python", so this always launches the
-# exact same interpreter (and therefore the exact same virtual environment)
-# that's running this script - regardless of what "python" resolves to on
-# the current PATH.
-SERVER_PARAMS = StdioServerParameters(
-    command=sys.executable,
-    args=["-m", "mcp_server.server"],
-)
+# Shared with agent/client.py (and tests/test_mcp_protocol.py) - see that
+# file for why env=dict(os.environ) matters here, not just command/args.
+from agent.client import SERVER_PARAMS
 
 
 async def main() -> None:
